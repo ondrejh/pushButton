@@ -6,26 +6,30 @@ import subprocess
 import threading
 import serial
 
+import serscan
+
 portStrings = ('COM1','COM2','COM47')
 
 class commThread(threading.Thread):
-    def __init__(self, portName, retFcn, testFcn):
+    def __init__(self, portName, retFcn, runFcn):
         threading.Thread.__init__(self)
         self.portName = portName
         self.retFcn = retFcn
-        self.testParent = testFcn
+        self.runFcn = runFcn
         self.stopVal = False
     def run(self):
         try:
             with serial.Serial(self.portName,9600,timeout=0.1) as port:
                 while True:
                     s = port.readlines()
-                    if s!=b'':
-                        print(s)
-                    self.testParent()
+                    if s==[b'PUSH\r\n']:
+                        self.runFcn()
                     if self.stopVal==True:
                         break
-                self.retFcn('OK')
+                try: # maybe the parent doesn't exist anymore
+                    self.retFcn('OK')
+                except:
+                    pass
         except:
             self.retFcn('ERROR')
     def stop(self):
@@ -36,6 +40,8 @@ class app:
         root.title("Push Button v0.1")
         root.resizable(False,False)
 
+        root.protocol("WM_DELETE_WINDOW", self.on_closing)
+
         self.mainfrm = Frame(root,padding='3 3 3 3')
         self.mainfrm.pack(side=TOP,fill=BOTH)
 
@@ -45,8 +51,11 @@ class app:
         self.serialLabel = Label(self.portLabelfrm,text='Name:')
         self.serialLabel.pack(side=LEFT)
         self.portStr = StringVar()
+        self.ports = portStrings
+        self.scanPorts()
         self.serialCombo = Combobox(self.portLabelfrm,textvariable=self.portStr,
-                                    values=portStrings,width=10,justify=CENTER)
+                                    values=self.ports,width=10,justify=CENTER)
+        self.serialCombo.current(0)
         self.serialCombo.pack(side=LEFT)
         self.autoVar = IntVar()
         self.serialChbox = Checkbutton(self.portLabelfrm,text='Auto Connect',
@@ -80,6 +89,18 @@ class app:
 
         self.retColor = self.cmdButton.cget('bg')
 
+    def on_closing(self):
+        if self.serialButton['text']!='CONNECT':
+            self.connect()
+        root.destroy()
+
+    def scanPorts(self):
+        ports = serscan.scan()
+        portnames = []
+        for port in ports:
+            portnames.append(port[1])
+        self.ports = portnames
+
     def setBgColor(self,wdget,color):
         c = wdget.cget('bg')
         wdget['bg']=color
@@ -91,8 +112,8 @@ class app:
     def connect(self):
         if self.serialButton['text']=='CONNECT':
             portName = self.serialCombo.get()
-            print(portName)
-            self.thread = commThread(portName,self.conRet,self.conTest)
+            #print(portName)
+            self.thread = commThread(portName,self.conRet,self.run)
             self.thread.start()
             self.serialButton['text']='DISCONNECT'
         else:
@@ -103,14 +124,18 @@ class app:
 
     def conRet(self,retVal):
         self.serialButton['text']='CONNECT' 
-        print(retVal)
+        #print(retVal)
             
     def run(self):
-        ret = subprocess.call('make program_win',cwd=r'{}'.format(self.directory.get()))
-        if ret==0:
-            self.setBgColor(self.cmdButton,'lightgreen')
-        else:
+        try:
+            ret = subprocess.call('make program_win',cwd=r'{}'.format(self.directory.get()))
+            if ret==0:
+                self.setBgColor(self.cmdButton,'lightgreen')
+            else:
+                self.setBgColor(self.cmdButton,'red')
+        except:
             self.setBgColor(self.cmdButton,'red')
+        root.update_idletasks()
         root.after(600,lambda w=self.cmdButton,c=self.retColor: self.setBgColor(w,c))
 
 root = Tk()
