@@ -107,24 +107,21 @@ class app:
         return c
 
     def selectdir(self):
-        pass
+        dir = filedialog.askdirectory()
+        if dir!=():
+            self.directory.set(dir)
 
     def connect(self):
         if self.serialButton['text']=='CONNECT':
             portName = self.serialCombo.get()
-            #print(portName)
             self.thread = commThread(portName,self.conRet,self.run)
             self.thread.start()
             self.serialButton['text']='DISCONNECT'
         else:
             self.thread.stop()
 
-    def conTest(self):
-        return(self.retColor)
-
     def conRet(self,retVal):
         self.serialButton['text']='CONNECT' 
-        #print(retVal)
             
     def run(self):
         try:
