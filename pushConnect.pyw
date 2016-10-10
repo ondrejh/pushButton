@@ -8,7 +8,16 @@ import serial
 
 import serscan
 
-portStrings = ('COM1','COM2','COM47')
+import xml.etree.ElementTree as ET
+
+
+defaultPort = 'select port'
+defaultAutoconnect = 'False'
+defaultDirectory = 'select directory'
+defaultCommand = 'put command here'
+
+defaultPortStrings = ('COM1','COM2','COM3')
+
 
 class commThread(threading.Thread):
     def __init__(self, portName, retFcn, runFcn):
@@ -35,6 +44,7 @@ class commThread(threading.Thread):
     def stop(self):
         self.stopVal = True
 
+
 class app:
     def __init__(self, master):
         root.title("Push Button v0.1")
@@ -51,7 +61,7 @@ class app:
         self.serialLabel = Label(self.portLabelfrm,text='Name:')
         self.serialLabel.pack(side=LEFT)
         self.portStr = StringVar()
-        self.ports = portStrings
+        self.ports = defaultPortStrings
         self.scanPorts()
         self.serialCombo = Combobox(self.portLabelfrm,textvariable=self.portStr,
                                     values=self.ports,width=10,justify=CENTER)
@@ -69,7 +79,7 @@ class app:
         self.dirLabelfrm.pack(side=TOP,fill=X)
 
         self.directory = StringVar()
-        self.directory.set('D:\Projekty\TivaWare_C_Series-2.1.2.111\examples\section_brd_fw')
+        self.directory.set(defaultDirectory)
         self.dirEntry = Entry(self.dirLabelfrm,textvariable=self.directory)
         self.dirEntry.pack(side=LEFT,fill=X,expand=True)
         self.dirButton = Button(self.dirLabelfrm,text='SELECT',
@@ -80,7 +90,7 @@ class app:
         self.cmdLabelfrm.pack(side=TOP,fill=X)
 
         self.command = StringVar()
-        self.command.set('make program_win')
+        self.command.set(defaultCommand)
         self.cmdEntry = Entry(self.cmdLabelfrm,textvariable=self.command)
         self.cmdEntry.pack(side=LEFT,fill=X,expand=True)
         self.cmdButton = Button(self.cmdLabelfrm,text='RUN',
@@ -89,9 +99,70 @@ class app:
 
         self.retColor = self.cmdButton.cget('bg')
 
+        self.load_config()
+
+    def load_config(self):
+        try:
+            self.configtree = ET.parse('config.xml')
+            self.config = self.configtree.getroot()
+        except:
+            #config file doesnt exist (most probably)
+            self.config = ET.Element('config')
+            portElement = ET.SubElement(self.config,'port')
+            portElement.text = defaultPort
+            autoElement = ET.SubElement(self.config,'autoconnect')
+            autoElement.text = defaultAutoconnect
+            dirElement = ET.SubElement(self.config,'directory')
+            dirElement.text = defaultDirectory
+            cmdElement = ET.SubElement(self.config,'command')
+            cmdElement.text = defaultCommand
+            f = open('config.xml','w')
+            f.write(ET.tostring(self.config).decode('utf8'))
+            f.close()
+            self.configtree = ET.parse('config.xml')
+            self.config = self.configtree.getroot()
+
+        try:
+            self.portStr.set(self.config.find('port').text)
+        except:
+            portElement = ET.SubElement(self.config,'port')
+            portElement.text = defaultPort
+
+        try:
+            self.directory.set(self.config.find('directory').text)
+        except:
+            dirElement = ET.SubElement(self.config,'directory')
+            dirElement.text = defalutDirectory
+
+        try:
+            self.command.set(self.config.find('command').text)
+        except:
+            cmdElement = ET.SubElement(self.config,'command')
+            cmdElement.text = defaultCommand
+        
+        try:
+            if self.config.find('autoconnect').text=='True':
+                self.autoVar.set(True)
+                self.connect()
+            else:
+                self.autoVar.set(False)
+        except:
+            autoElement = ET.SubElement(self.config,'autoconnect')
+            autoElement.text = defaultAutoconnect
+
+    def save_config(self):
+        self.config.find('port').text = self.portStr.get()
+        self.config.find('autoconnect').text = 'False' if self.autoVar.get()==0 else 'True'
+        self.config.find('directory').text = self.directory.get()
+        self.config.find('command').text = self.command.get()
+        self.configtree.write('config.xml')
+
     def on_closing(self):
         if self.serialButton['text']!='CONNECT':
             self.connect()
+        else:
+            self.portOK = True
+        self.save_config()
         root.destroy()
 
     def scanPorts(self):
@@ -121,6 +192,8 @@ class app:
             self.thread.stop()
 
     def conRet(self,retVal):
+        if retVal=='OK':
+            self.portOK = True
         self.serialButton['text']='CONNECT' 
             
     def run(self):
@@ -128,6 +201,7 @@ class app:
             ret = subprocess.call('make program_win',cwd=r'{}'.format(self.directory.get()))
             if ret==0:
                 self.setBgColor(self.cmdButton,'lightgreen')
+                self.cmdOK = True
             else:
                 self.setBgColor(self.cmdButton,'red')
         except:
@@ -135,6 +209,9 @@ class app:
         root.update_idletasks()
         root.after(600,lambda w=self.cmdButton,c=self.retColor: self.setBgColor(w,c))
 
-root = Tk()
-gui = app(root)
-root.mainloop()
+
+if __name__ == "__main__":
+    
+    root = Tk()
+    gui = app(root)
+    root.mainloop()
