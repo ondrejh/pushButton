@@ -1,2 +1,3 @@
 # pushButton
-desktop arduino based pushbutton with app running command
+Hardware button executing specified command on PC. The button is arduino based, command GUI is written in python.
+TODO: some documentation ...
