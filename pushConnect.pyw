@@ -1,7 +1,9 @@
 from tkinter import *
 from tkinter.ttk import *
 from tkinter import Button
+from tkinter import filedialog
 
+import sys
 import subprocess
 import threading
 import serial
@@ -48,6 +50,10 @@ class commThread(threading.Thread):
 class app:
     def __init__(self, master):
         root.title("Push Button v0.1")
+        try:
+            root.iconbitmap(r'button.ico')
+        except:
+            pass
         root.resizable(False,False)
 
         root.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -62,7 +68,7 @@ class app:
         self.serialLabel.pack(side=LEFT)
         self.portStr = StringVar()
         self.ports = defaultPortStrings
-        self.scanPorts()
+        #self.scanPorts()
         self.serialCombo = Combobox(self.portLabelfrm,textvariable=self.portStr,
                                     values=self.ports,width=10,justify=CENTER)
         self.serialCombo.current(0)
@@ -179,7 +185,7 @@ class app:
 
     def selectdir(self):
         dir = filedialog.askdirectory()
-        if dir!=():
+        if dir!='':
             self.directory.set(dir)
 
     def connect(self):
@@ -198,13 +204,21 @@ class app:
             
     def run(self):
         try:
-            ret = subprocess.call('make program_win',cwd=r'{}'.format(self.directory.get()))
+        #if True:
+            cmd = r'{}'.format(self.command.get())
+            print(cmd)
+            dir = r'{}'.format(self.directory.get())
+            print(dir)
+            #os.system(cmd,cwd=dir)
+            #subprocess.Popen(self.command.get(),cwd=r'{}'.format(self.directory.get()),shell=True)
+            ret = subprocess.call(dir+cmd,cwd=dir)
             if ret==0:
                 self.setBgColor(self.cmdButton,'lightgreen')
                 self.cmdOK = True
             else:
                 self.setBgColor(self.cmdButton,'red')
         except:
+            print(sys.exc_info())
             self.setBgColor(self.cmdButton,'red')
         root.update_idletasks()
         root.after(600,lambda w=self.cmdButton,c=self.retColor: self.setBgColor(w,c))
